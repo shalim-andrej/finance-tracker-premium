@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+    <meta name="theme-color" content="#0B1A2B">
+    <title>Мои финансы Premium</title>
+    <link rel="manifest" href="manifest.json">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Cormorant+Garamond:wght@600;700&display=swap" rel="stylesheet">
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        :root {
+            --bg-color: #0B1A2B;
+            --card-bg: #152A43;
+            --text-main: #F5F3EE;
+            --text-muted: #8B9EB7;
+            --gold: #C9A46A;
+            --gold-hover: #E4CFA6;
+            --danger: #FF6B6B;
+            --success: #4ADE80;
+            --border: rgba(255, 255, 255, 0.08);
+            --input-bg: rgba(0, 0, 0, 0.2);
+            --input-bg-focus: rgba(0, 0, 0, 0.4);
+            --modal-bg: rgba(11, 26, 43, 0.95);
+            --hover-bg: rgba(255, 255, 255, 0.06);
+        }
+        body[data-theme="light"] {
+            --bg-color: #F5F3EE;
+            --card-bg: #FFFFFF;
+            --text-main: #0B1A2B;
+            --text-muted: #7A7871;
+            --border: rgba(11, 26, 43, 0.1);
+            --input-bg: #F5F3EE;
+            --input-bg-focus: #EDEAE1;
+            --modal-bg: rgba(245, 243, 238, 0.95);
+            --hover-bg: rgba(11, 26, 43, 0.04);
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Manrope', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 40px 20px;
+            transition: background-color 0.5s ease, color 0.3s ease;
+            position: relative;
+            overflow-x: hidden;
+        }
+        body::before {
+            content: '';
+            position: fixed;
+            top: -50%; left: -50%;
+            width: 200%; height: 200%;
+            background:
+                radial-gradient(circle at 20% 30%, rgba(201, 164, 106, 0.08), transparent 40%),
+                radial-gradient(circle at 80% 70%, rgba(74, 222, 128, 0.06), transparent 40%),
+                radial-gradient(circle at 50% 50%, rgba(255, 107, 107, 0.05), transparent 40%);
+            animation: bgShift 20s ease-in-out infinite;
+            pointer-events: none;
+            z-index: 0;
+        }
+        @keyframes bgShift {
+            0%, 100% { transform: translate(0, 0) rotate(0deg); }
+            33% { transform: translate(5%, -5%) rotate(120deg); }
+            66% { transform: translate(-5%, 5%) rotate(240deg); }
+        }
+
+        /* --- СТИЛИ АВТОРИЗАЦИИ И ЗАГРУЗКИ --- */
+        .auth-screen, .loading-screen {
+            position: fixed; inset: 0; background: var(--bg-color);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 5000; padding: 20px;
+        }
+        .auth-screen.hidden, .loading-screen.hidden { display: none; }
+        .auth-box {
+            background: var(--card-bg); padding: 40px; border-radius: 24px;
+            border: 1px solid var(--border); width: 100%; max-width: 400px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+        }
+        .auth-title { font-family: 'Cormorant Garamond', serif; font-size: 34px; text-align: center; margin-bottom: 10px; }
+        .auth-subtitle { text-align: center; color: var(--text-muted); font-size: 13px; margin-bottom: 25px; }
+        .auth-tabs { display: flex; gap: 8px; margin-bottom: 20px; background: var(--input-bg); padding: 5px; border-radius: 12px; }
+        .auth-tab {
+            flex: 1; padding: 10px; border: none; background: transparent; color: var(--text-muted);
+            border-radius: 8px; cursor: pointer; font-family: 'Manrope', sans-serif; font-weight: 600; font-size: 13px;
+        }
+        .auth-tab.active { background: var(--gold); color: #0B1A2B; }
+        #auth-form input {
+            width: 100%; padding: 14px; margin-bottom: 12px; background: var(--input-bg);
+            border: 1px solid var(--border); border-radius: 12px; color: var(--text-main);
+            font-family: 'Manrope', sans-serif; font-size: 14px; outline: none;
+        }
+        #auth-form input:focus { border-color: var(--gold); }
+        .auth-error { color: var(--danger); font-size: 12px; margin-bottom: 12px; min-height: 16px; text-align: center; }
+        .btn-google {
+            width: 100%; padding: 14px; margin-top: 15px; background: var(--input-bg);
+            border: 1px solid var(--border); color: var(--text-main); border-radius: 12px;
+            cursor: pointer; font-family: 'Manrope', sans-serif; font-weight: 600; font-size: 14px;
+            display: flex; align-items: center; justify-content: center; gap: 10px;
+        }
+        .btn-google:hover { border-color: var(--gold); }
+        .spinner {
+            width: 40px; height: 40px; border: 3px solid var(--border);
+            border-top-color: var(--gold); border-radius: 50%;
+            animation: spin 0.8s linear infinite; margin: 0 auto 15px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .loading-text { color: var(--text-muted); font-size: 13px; text-align: center; }
+
+        /* --- ПАНЕЛЬ ПОЛЬЗОВАТЕЛЯ --- */
+        .user-bar {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 15px; padding: 10px 15px; background: var(--input-bg);
+            border-radius: 10px; font-size: 12px; color: var(--text-muted);
+        }
+        .user-bar .user-email { font-weight: 600; color: var(--text-main); }
+        .btn-logout {
+            background: transparent; border: 1px solid var(--border); color: var(--text-muted);
+            padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px;
+        }
+        .btn-logout:hover { color: var(--danger); border-color: var(--danger); }
+        .sync-indicator { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-muted); }
+        .sync-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--success); }
+        .sync-dot.syncing { background: var(--gold); animation: pulse 1s infinite; }
+        .sync-dot.offline { background: var(--danger); }
+
+        /* --- ОСНОВНЫЕ СТИЛИ --- */
+        .app-container {
+            width: 100%; max-width: 640px; background: var(--card-bg);
+            border-radius: 24px; padding: 35px; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15);
+            border: 1px solid var(--border); position: relative; z-index: 1;
+        }
+        .theme-toggle {
+            position: absolute; top: 20px; right: 20px; width: 42px; height: 42px;
+            border-radius: 50%; border: 1px solid var(--border); background: var(--input-bg);
+            color: var(--text-main); font-size: 20px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .theme-toggle:hover { transform: rotate(20deg) scale(1.1); border-color: var(--gold); }
+        h1 { font-family: 'Cormorant Garamond', serif; font-size: 38px; text-align: center; margin-bottom: 25px; }
+        .balance-container { text-align: center; margin-bottom: 15px; padding: 22px; background: var(--input-bg); border-radius: 16px; border: 1px solid var(--border); }
+        .balance-label { font-size: 12px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 5px; }
+        .balance-amount { font-family: 'Cormorant Garamond', serif; font-size: 48px; font-weight: 700; line-height: 1.1; }
+        .balance-amount.positive { color: var(--success); }
+        .balance-amount.negative { color: var(--danger); }
+        .breakdown { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+        .breakdown-item { background: var(--input-bg); padding: 14px; border-radius: 12px; text-align: center; border: 1px solid var(--border); }
+        .breakdown-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; display: block; }
+        .breakdown-value { font-family: 'Cormorant Garamond', serif; font-size: 20px; font-weight: 700; }
+        .breakdown-value.income { color: var(--success); }
+        .breakdown-value.expense { color: var(--danger); }
+
+        .budget-section { background: var(--input-bg); border: 1px solid var(--border); border-radius: 16px; padding: 20px; margin-bottom: 15px; }
+        .budget-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .budget-title { font-family: 'Cormorant Garamond', serif; font-size: 18px; font-weight: 700; }
+        .budget-edit { display: flex; gap: 6px; }
+        .budget-edit input { width: 100px; padding: 8px; font-size: 13px; }
+        .budget-progress { height: 12px; background: rgba(0,0,0,0.3); border-radius: 10px; overflow: hidden; }
+        .budget-bar { height: 100%; background: linear-gradient(90deg, #4ADE80, #22C55E); transition: width 0.6s, background 0.3s; }
+        .budget-bar.warning { background: linear-gradient(90deg, #FBBF24, #F59E0B); }
+        .budget-bar.danger { background: linear-gradient(90deg, #FF6B6B, #DC2626); }
+        .budget-info { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-muted); margin-top: 8px; }
+
+        .top-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+
+        .chart-section { background: var(--input-bg); border: 1px solid var(--border); border-radius: 16px; padding: 18px; margin-bottom: 15px; }
+        .chart-section-title { font-family: 'Cormorant Garamond', serif; font-size: 18px; font-weight: 700; margin-bottom: 15px; }
+        .chart-layout { display: flex; gap: 20px; align-items: center; }
+        .chart-canvas-wrap { width: 170px; height: 170px; flex-shrink: 0; position: relative; }
+        .chart-legend { flex: 1; display: flex; flex-direction: column; gap: 6px; max-height: 180px; overflow-y: auto; }
+        .legend-item { display: flex; justify-content: space-between; align-items: center; font-size: 12px; padding: 5px 0; border-bottom: 1px solid var(--border); }
+        .legend-item:last-child { border-bottom: none; }
+        .legend-label { display: flex; align-items: center; gap: 6px; }
+        .legend-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+        .legend-value { font-weight: 700; white-space: nowrap; font-size: 12px; }
+        .legend-percent { font-size: 10px; color: var(--text-muted); margin-left: 3px; }
+        .legend-empty { color: var(--text-muted); font-size: 12px; text-align: center; padding: 15px 0; }
+        .daily-chart-wrap { height: 180px; position: relative; }
+
+        .top-list { display: flex; flex-direction: column; gap: 6px; }
+        .top-item { display: flex; justify-content: space-between; align-items: center; font-size: 13px; padding: 6px 0; }
+        .top-rank { font-family: 'Cormorant Garamond', serif; font-size: 18px; color: var(--gold); font-weight: 700; margin-right: 8px; }
+        .top-item-name { flex: 1; }
+        .top-item-amount { font-weight: 700; color: var(--danger); }
+
+        .input-group { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+        input, select {
+            width: 100%; padding: 13px; background: var(--input-bg); border: 1px solid var(--border);
+            border-radius: 12px; color: var(--text-main); font-family: 'Manrope', sans-serif;
+            font-size: 14px; outline: none;
+        }
+        input:focus, select:focus { border-color: var(--gold); background: var(--input-bg-focus); }
+        select { cursor: pointer; appearance: none; }
+        .full-width { grid-column: span 2; }
+
+        .quick-btns { display: flex; gap: 6px; margin-bottom: 15px; flex-wrap: wrap; }
+        .quick-btn {
+            background: var(--input-bg); border: 1px solid var(--border); color: var(--text-muted);
+            padding: 7px 12px; border-radius: 20px; font-size: 12px; cursor: pointer;
+            font-family: 'Manrope', sans-serif;
+        }
+        .quick-btn:hover { background: var(--gold); color: #0B1A2B; border-color: var(--gold); }
+
+        .btn-add {
+            width: 100%; padding: 15px; background: var(--gold); color: #0B1A2B;
+            border: none; border-radius: 12px; font-family: 'Manrope', sans-serif;
+            font-size: 14px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;
+            cursor: pointer; margin-bottom: 15px; display: flex; justify-content: center; align-items: center; gap: 8px;
+        }
+        .btn-add:hover { background: var(--gold-hover); transform: translateY(-2px); box-shadow: 0 10px 20px -10px rgba(201, 164, 106, 0.5); }
+
+        .btn-mic {
+            background: var(--input-bg); border: 1px solid var(--border); color: var(--text-main);
+            padding: 15px; border-radius: 12px; font-size: 20px; cursor: pointer; transition: all 0.2s;
+        }
+        .btn-mic:hover { background: var(--gold); color: #0B1A2B; }
+        .btn-mic.recording { background: var(--danger); color: white; animation: pulse 1s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+
+        .toolbar { display: flex; gap: 8px; margin-bottom: 12px; }
+        .search-input { flex: 1; padding: 10px 14px; font-size: 13px; }
+        .btn-icon-top {
+            background: transparent; border: 1px solid var(--border); color: var(--text-muted);
+            padding: 10px 13px; border-radius: 10px; cursor: pointer; font-size: 13px;
+        }
+        .btn-icon-top:hover { color: var(--gold); border-color: var(--gold); }
+        .btn-icon-top.danger:hover { color: var(--danger); border-color: var(--danger); }
+
+        .filters { display: flex; gap: 8px; margin-bottom: 18px; }
+        .filter-btn {
+            flex: 1; padding: 10px; background: transparent; border: 1px solid var(--border);
+            color: var(--text-muted); border-radius: 8px; cursor: pointer; font-family: 'Manrope', sans-serif; font-size: 12px; font-weight: 600;
+        }
+        .filter-btn.active { background: var(--gold); color: #0B1A2B; border-color: var(--gold); }
+
+        ul { list-style: none; }
+        li {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 14px 16px; background: var(--input-bg); border-radius: 12px;
+            margin-bottom: 8px; border-left: 4px solid var(--border);
+            transition: opacity 0.3s ease, transform 0.3s ease; animation: slideIn 0.3s ease;
+            position: relative; overflow: hidden;
+        }
+        @keyframes slideIn { from { opacity: 0; transform: translateX(-20px); } to { opacity: 1; transform: translateX(0); } }
+        li.removing { opacity: 0; transform: translateX(100%); }
+        li:hover { background: var(--hover-bg); }
+
+        .item-cat-icon {
+            width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            font-size: 18px; flex-shrink: 0; margin-right: 12px;
+        }
+        .item-info { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+        .item-title { font-weight: 600; font-size: 14px; }
+        .item-category { font-size: 10px; color: var(--text-muted); text-transform: uppercase; }
+        .item-date { font-size: 9px; color: var(--text-muted); opacity: 0.6; }
+        .item-left { display: flex; align-items: center; flex: 1; min-width: 0; }
+        .item-right { display: flex; align-items: center; gap: 6px; }
+        .item-amount { font-family: 'Cormorant Garamond', serif; font-size: 18px; font-weight: 700; white-space: nowrap; }
+        .amount-income { color: var(--success); }
+        .amount-expense { color: var(--danger); }
+
+        .btn-icon {
+            background: var(--input-bg); color: var(--text-muted); border: 1px solid var(--border);
+            width: 28px; height: 28px; border-radius: 7px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; font-size: 13px;
+        }
+        .btn-icon:hover { background: var(--gold); color: #0B1A2B; border-color: var(--gold); }
+        .btn-icon.delete:hover { background: var(--danger); color: #fff; border-color: var(--danger); }
+
+        .empty-state { text-align: center; color: var(--text-muted); padding: 40px 20px; font-size: 13px; }
+        .empty-state .emoji { font-size: 40px; display: block; margin-bottom: 10px; opacity: 0.5; }
+
+        .modal-overlay {
+            position: fixed; inset: 0; background: var(--modal-bg); backdrop-filter: blur(5px);
+            display: flex; align-items: center; justify-content: center; z-index: 1000;
+            opacity: 0; pointer-events: none; transition: opacity 0.3s;
+        }
+        .modal-overlay.active { opacity: 1; pointer-events: all; }
+        .modal { background: var(--card-bg); padding: 28px; border-radius: 20px; width: 90%; max-width: 400px; border: 1px solid var(--border); }
+        .modal h2 { font-family: 'Cormorant Garamond', serif; font-size: 26px; margin-bottom: 18px; text-align: center; }
+        .modal input, .modal select { margin-bottom: 10px; }
+        .modal-actions { display: flex; gap: 10px; margin-top: 15px; }
+        .btn-cancel { flex: 1; padding: 13px; background: transparent; border: 1px solid var(--border); color: var(--text-main); border-radius: 10px; cursor: pointer; font-weight: 600; }
+        .btn-save { flex: 1; padding: 13px; background: var(--gold); color: #0B1A2B; border: none; border-radius: 10px; cursor: pointer; font-weight: 700; }
+
+        .toast-container { position: fixed; top: 20px; right: 20px; z-index: 2000; display: flex; flex-direction: column; gap: 10px; }
+        .toast {
+            background: var(--card-bg); color: var(--text-main); padding: 12px 18px; border-radius: 10px;
+            border-left: 4px solid var(--gold); box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            font-size: 13px; font-weight: 600; min-width: 220px;
+            opacity: 0; transform: translateX(100%); transition: all 0.3s ease;
+        }
+        .toast.show { opacity: 1; transform: translateX(0); }
+        .toast.success { border-left-color: var(--success); }
+        .toast.error { border-left-color: var(--danger); }
+        .hidden-input { display: none; }
+
+        @media (max-width: 500px) {
+            .app-container { padding: 25px 20px; }
+            h1 { font-size: 30px; }
+            .balance-amount { font-size: 38px; }
+            .chart-layout { flex-direction: column; }
+            .chart-canvas-wrap { width: 150px; height: 150px; }
+        }
+    </style>
+</head>
+<body data-theme="dark">
+
+    <div class="toast-container" id="toast-container"></div>
+
+    <!-- ЭКРАН АВТОРИЗАЦИИ -->
+    <div class="auth-screen" id="auth-screen">
+        <div class="auth-box">
+            <h1 class="auth-title">Мои финансы</h1>
+            <p class="auth-subtitle">Войдите, чтобы ваши данные были доступны на всех устройствах</p>
+
+            <div class="auth-tabs">
+                <button class="auth-tab active" data-tab="login">Вход</button>
+                <button class="auth-tab" data-tab="register">Регистрация</button>
+            </div>
+
+            <form id="auth-form">
+                <input type="email" id="auth-email" placeholder="Email" required>
+                <input type="password" id="auth-password" placeholder="Пароль (минимум 6 символов)" required minlength="6">
+                <div class="auth-error" id="auth-error"></div>
+                <button type="submit" class="btn-add" id="auth-submit">Войти</button>
+            </form>
+
+            <button class="btn-google" id="btn-google">
+                <span>🔵</span> Продолжить с Google
+            </button>
+        </div>
+    </div>
+
+    <!-- ЭКРАН ЗАГРУЗКИ -->
+    <div class="loading-screen hidden" id="loading-screen">
+        <div style="text-align: center;">
+            <div class="spinner"></div>
+            <div class="loading-text">Загрузка данных...</div>
+        </div>
+    </div>
+
+    <!-- ОСНОВНОЕ ПРИЛОЖЕНИЕ (Скрыто изначально) -->
+    <div class="app-container" id="app-container" style="display: none;">
+
+        <div class="user-bar" id="user-bar">
+            <span class="user-email" id="user-email"></span>
+            <div class="sync-indicator">
+                <span class="sync-dot" id="sync-dot"></span>
+                <span id="sync-text">Синхронизировано</span>
+            </div>
+            <button class="btn-logout" id="logout-btn">Выйти</button>
+        </div>
+
+        <button class="theme-toggle" id="theme-toggle" title="Переключить тему">🌙</button>
+        <h1>Мои финансы</h1>
+
+        <!-- ===== ОБЩАЯ СТАТИСТИКА ===== -->
+        <div class="top-controls">
+            <select id="month-filter"></select>
+            <select id="currency-select">
+                <option value="RUB">₽ Рубль</option>
+                <option value="USD">$ Доллар</option>
+                <option value="EUR">€ Евро</option>
+            </select>
+        </div>
+
+        <div class="balance-container">
+            <div class="balance-label">Текущий баланс</div>
+            <div class="balance-amount positive" id="balance">0 ₽</div>
+        </div>
+
+        <div class="breakdown">
+            <div class="breakdown-item">
+                <span class="breakdown-label">Доходы</span>
+                <div class="breakdown-value income" id="total-income">+0 ₽</div>
+            </div>
+            <div class="breakdown-item">
+                <span class="breakdown-label">Расходы</span>
+                <div class="breakdown-value expense" id="total-expense">-0 ₽</div>
+            </div>
+        </div>
+
+        <div class="budget-section">
+            <div class="budget-header">
+                <div class="budget-title">🎯 Бюджет на месяц</div>
+                <div class="budget-edit">
+                    <input type="number" id="budget-input" placeholder="Лимит" min="0">
+                    <button class="btn-icon-top" id="budget-save">✓</button>
+                </div>
+            </div>
+            <div class="budget-progress">
+                <div class="budget-bar" id="budget-bar" style="width: 0%"></div>
+            </div>
+            <div class="budget-info">
+                <span id="budget-spent">Потрачено: 0 ₽</span>
+                <span id="budget-left">Осталось: 0 ₽</span>
+            </div>
+        </div>
+
+        <!-- ===== ДОБАВЛЕНИЕ ОПЕРАЦИИ ===== -->
+        <div class="input-group">
+            <input type="text" id="text" placeholder="Описание" class="full-width">
+            <input type="number" id="amount" placeholder="Сумма" min="1">
+            <select id="type">
+                <option value="expense">Расход</option>
+                <option value="income">Доход</option>
+            </select>
+            <select id="category" class="full-width">
+                <option value="">Без категории</option>
+                <option value="food">🍔 Еда</option>
+                <option value="transport">🚗 Транспорт</option>
+                <option value="fun">🎉 Развлечения</option>
+                <option value="clothes">👕 Одежда</option>
+                <option value="health">💊 Здоровье</option>
+                <option value="home">🏠 Дом</option>
+                <option value="bills">📱 Связь и ЖКХ</option>
+                <option value="education">📚 Образование</option>
+                <option value="other">📦 Другое</option>
+            </select>
+        </div>
+
+        <div class="quick-btns">
+            <button class="quick-btn" data-quick="Кофе" data-amount="200" data-cat="food">☕ Кофе 200₽</button>
+            <button class="quick-btn" data-quick="Обед" data-amount="500" data-cat="food">🍔 Обед 500₽</button>
+            <button class="quick-btn" data-quick="Метро" data-amount="50" data-cat="transport">🚇 Метро 50₽</button>
+            <button class="quick-btn" data-quick="Такси" data-amount="400" data-cat="transport">🚖 Такси 400₽</button>
+        </div>
+
+        <button class="btn-add" id="add-btn">Добавить</button>
+
+        <!-- ===== ПОДРОБНАЯ СТАТИСТИКА ===== -->
+        <div class="chart-section">
+            <div class="chart-section-title">Расходы по категориям</div>
+            <div class="chart-layout">
+                <div class="chart-canvas-wrap"><canvas id="expenseChart"></canvas></div>
+                <div class="chart-legend" id="expense-legend"></div>
+            </div>
+        </div>
+
+        <div class="chart-section">
+            <div class="chart-section-title">Доходы и расходы</div>
+            <div class="chart-layout">
+                <div class="chart-canvas-wrap"><canvas id="incomeExpenseChart"></canvas></div>
+                <div class="chart-legend" id="income-legend"></div>
+            </div>
+        </div>
+
+        <div class="chart-section">
+            <div class="chart-section-title">📈 Траты по дням месяца</div>
+            <div class="daily-chart-wrap"><canvas id="dailyChart"></canvas></div>
+        </div>
+
+        <div class="chart-section">
+            <div class="chart-section-title">🔥 Топ-5 крупных трат</div>
+            <div class="top-list" id="top-list"></div>
+        </div>
+
+        <!-- ===== СПИСОК ОПЕРАЦИЙ ===== -->
+        <div class="toolbar">
+            <input type="text" id="search" class="search-input" placeholder="Поиск...">
+            <button class="btn-icon-top" id="export-btn" title="Экспорт">⬇</button>
+            <button class="btn-icon-top" id="import-btn" title="Импорт">⬆</button>
+            <button class="btn-icon-top danger" id="clear-all-btn" title="Очистить">🗑</button>
+            <input type="file" id="import-file" class="hidden-input" accept=".json">
+        </div>
+
+        <div class="filters">
+            <button class="filter-btn active" data-filter="all">Все</button>
+            <button class="filter-btn" data-filter="income">Доходы</button>
+            <button class="filter-btn" data-filter="expense">Расходы</button>
+        </div>
+
+        <ul id="list"></ul>
+    </div>
+
+    <div class="modal-overlay" id="modal">
+        <div class="modal">
+            <h2>Редактировать</h2>
+            <input type="text" id="edit-text" placeholder="Описание">
+            <input type="number" id="edit-amount" placeholder="Сумма">
+            <select id="edit-type">
+                <option value="expense">Расход</option>
+                <option value="income">Доход</option>
+            </select>
+            <select id="edit-category">
+                <option value="">Без категории</option>
+                <option value="food">🍔 Еда</option>
+                <option value="transport">🚗 Транспорт</option>
+                <option value="fun">🎉 Развлечения</option>
+                <option value="clothes">👕 Одежда</option>
+                <option value="health">💊 Здоровье</option>
+                <option value="home">🏠 Дом</option>
+                <option value="bills">📱 Связь и ЖКХ</option>
+                <option value="education">📚 Образование</option>
+                <option value="other">📦 Другое</option>
+            </select>
+            <div class="modal-actions">
+                <button class="btn-cancel" id="cancel-btn">Отмена</button>
+                <button class="btn-save" id="save-btn">Сохранить</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="script.js"></script>
+</body>
+</html>
